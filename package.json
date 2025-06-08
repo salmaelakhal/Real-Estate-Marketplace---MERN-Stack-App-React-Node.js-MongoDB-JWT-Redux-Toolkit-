@@ -20,7 +20,10 @@
   },
   "homepage": "https://github.com/salmaelakhal/Real-Estate-Marketplace---MERN-Stack-App-React-Node.js-MongoDB-JWT-Redux-Toolkit-#readme",
   "dependencies": {
+    "dotenv": "^16.5.0",
     "express": "^5.1.0",
+    "mongodb": "^6.17.0",
+    "mongoose": "^8.15.1",
     "nodemon": "^3.1.10"
   }
 }
