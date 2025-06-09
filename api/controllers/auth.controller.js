@@ -1,9 +1,10 @@
 // 1. Importation des outils nécessaires
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
+import { errorHandler } from "../utils/error.js";
 
 // 2. Contrôleur de création d'utilisateur
-export const signup = async (req, res) => {
+export const signup = async (req, res,next) => {
   // 3. Récupérer les infos envoyées par le client
   const { username, email, password } = req.body;
 
@@ -19,7 +20,8 @@ export const signup = async (req, res) => {
         res.status(201).json("User created successfully");
 
     } catch (error) {
-        res.status(500).json(error.message);
+        next(error);
     }
 
 };
+
