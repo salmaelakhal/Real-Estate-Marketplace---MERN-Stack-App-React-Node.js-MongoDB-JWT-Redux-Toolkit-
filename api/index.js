@@ -8,11 +8,12 @@ dotenv.config();
 
 // Start Express
 const app = express();
-app.use(express.json()); // Middleware to parse JSON bodies 
+app.use(express.json()); // Middleware to parse JSON bodies
 
 // connecte à MongoDB
+mongoose.set("strictQuery", false); // ajoute ça dans index.js avant mongoose.connect()
 mongoose
-  .connect(process.env.MONGO)
+  .connect(process.env.MONGO_URL)
   .then(() => {
     console.log("Connected to MongoDB successfully!");
   })
