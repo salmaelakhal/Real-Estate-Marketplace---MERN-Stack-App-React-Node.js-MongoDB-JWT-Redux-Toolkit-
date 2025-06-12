@@ -10,7 +10,7 @@ export default function SignIn() {
   const {loading, error} = useSelector((state) => state.user); // Si tu utilises Redux pour gérer l'état de l'utilisateur
 
   const navigate = useNavigate(); // ✅ ici
-const dispatch = useDispatch(); // Si tu veux utiliser Redux pour gérer l'état de l'utilisateur
+  const dispatch = useDispatch(); // Si tu veux utiliser Redux pour gérer l'état de l'utilisateur
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.id]: e.target.value });
     console.log(formData);
@@ -29,12 +29,14 @@ const dispatch = useDispatch(); // Si tu veux utiliser Redux pour gérer l'état
       });
       
       const data = await res.json(); 
+      console.log("Données reçues de l'API :", data);
+
       if (data.success === false) {
         dispatch(signInFailure(data.message)); // Si tu utilises Redux pour gérer l'état de l'utilisateur 
         return;
       }
 
-      dispatch(signInSuccess(data.user)); // Si tu utilises Redux pour gérer l'état de l'utilisateur
+      dispatch(signInSuccess(data)); // Si tu utilises Redux pour gérer l'état de l'utilisateur
       navigate("/"); // ✅ utilise bien le hook
       console.log(data);
 
