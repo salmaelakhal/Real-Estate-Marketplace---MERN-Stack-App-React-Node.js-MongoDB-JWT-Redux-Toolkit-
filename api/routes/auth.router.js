@@ -1,10 +1,10 @@
 import express from "express";
-import { signup, signin, googleAuth } from "../controllers/auth.controller.js";
+import { signup } from "../controllers/auth.controller.js"; // ← avec .js obligatoire
+import { signin } from "../controllers/auth.controller.js"; // ← avec .js obligatoire
 
 const router = express.Router();
 
 router.post("/signup", signup);
 router.post("/signin", signin);
-router.post("/google", googleAuth); // nouvelle route pour Google OAuth
 
 export default router;
