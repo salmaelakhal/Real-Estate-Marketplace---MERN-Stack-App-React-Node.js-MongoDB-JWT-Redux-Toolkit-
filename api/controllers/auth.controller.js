@@ -1,6 +1,6 @@
 // 1. Importation des outils nécessaires
 import User from "../models/user.model.js";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcryptjs"; // ✅ tu as cette ligne déjà
 import { errorHandler } from "../utils/error.js";
 import jwt from "jsonwebtoken";
 // 2. Contrôleur de création d'utilisateur
@@ -73,8 +73,8 @@ export const signin = async (req, res, next) => {
         const generatedPassword =
           Math.random().toString(36).slice(-8) +
           Math.random().toString(36).slice(-8);
-        const hashedPassword = bcryptjs.hashSync(generatedPassword, 10);
-        const newUser = new User({
+          const hashedPassword = bcrypt.hashSync(generatedPassword, 10);
+          const newUser = new User({
           username:
             req.body.name.split(" ").join("").toLowerCase() +
             Math.random().toString(36).slice(-4),
