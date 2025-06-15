@@ -28,48 +28,74 @@ export const signup = async (req, res, next) => {
 
 // Contrôleur de connexion (signin)
 export const signin = async (req, res, next) => {
-    // 1. Récupérer les infos envoyées par le client dans le body (email et password)
-    const { email, password } = req.body;
-  
+  const { email, password } = req.body;
+  console.log("📩 Requête reçue avec :", req.body);
+
+  try {
+    const validUser = await User.findOne({ email });
+    if (!validUser) {
+      console.log("❌ Utilisateur non trouvé");
+      return next(errorHandler(404, "User not found"));
+    }
+
+    const isPasswordValid = bcrypt.compareSync(password, validUser.password);
+    if (!isPasswordValid) {
+      console.log("🔐 Mot de passe incorrect");
+      return next(errorHandler(401, "Wrong credentials!"));
+    }
+
+    const token = jwt.sign({ id: validUser._id }, process.env.JWT_SECRET);
+
+    const { password: pass, ...rest } = validUser._doc;
+
+    console.log("✅ Connexion réussie. Token généré.");
+    res
+      .cookie("access_token", token, { httpOnly: true })
+      .status(200)
+      .json(rest);
+  } catch (error) {
+    console.error("💥 Erreur dans signin():", error);
+    next(error);
+  }
+};
+
+  export const google = async (req, res, next) => {
     try {
-      // 2. Vérifier si un utilisateur avec cet email existe dans la base MongoDB
-      const validUser = await User.findOne({ email });
-      
-      // 3. Si aucun utilisateur n'est trouvé, renvoyer une erreur 404
-      if (!validUser) {
-        return next(errorHandler(404, "User not found"));
+      const user = await User.findOne({ email: req.body.email });
+      if (user) {
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+        const { password: pass, ...rest } = user._doc;
+        res
+          .cookie("access_token", token, { httpOnly: true })
+          .status(200)
+          .json(rest);
+      } else {
+        const generatedPassword =
+          Math.random().toString(36).slice(-8) +
+          Math.random().toString(36).slice(-8);
+        const hashedPassword = bcryptjs.hashSync(generatedPassword, 10);
+        const newUser = new User({
+          username:
+            req.body.name.split(" ").join("").toLowerCase() +
+            Math.random().toString(36).slice(-4),
+          email: req.body.email,
+          password: hashedPassword,
+          avatar: req.body.image,
+        });
+        await newUser.save();
+        const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET);
+        const { password: pass, ...rest } = newUser._doc;
+        res
+          .cookie("access_token", token, { httpOnly: true })
+          .status(200)
+          .json(rest);
       }
-  
-      // 4. Comparer le mot de passe envoyé avec celui stocké (haché)
-      const isPasswordValid = bcrypt.compareSync(password, validUser.password);
-      
-      // 5. Si les mots de passe ne correspondent pas, renvoyer une erreur 401
-      if (!isPasswordValid) {
-        return next(errorHandler(401, "Wrong credentials!"));
-      }
-  
-      // 6. Si l'utilisateur est valide, générer un token JWT signé avec l'id de l'utilisateur
-      const token = jwt.sign(
-        { id: validUser._id },            // charge utile (payload) du token
-        process.env.JWT_SECRET            // clé secrète pour signer le token
-      );
-  
-      // 7. Exclure le mot de passe des données utilisateur avant de les envoyer au client
-      const { password: pass, ...rest } = validUser._doc;
-      // validUser._doc contient toutes les données de l'utilisateur MongoDB
-  
-      // 8. Envoyer un cookie contenant le token + la réponse JSON (infos utilisateur sans mot de passe)
-      res
-        .cookie("access_token", token, {
-          httpOnly: true,                // le cookie ne sera pas accessible par JavaScript (sécurité XSS)
-          // Optionnel : tu peux aussi ajouter "secure: true" et "sameSite" selon ton environnement
-        })
-        .status(200)                     // Statut HTTP OK
-        .json(rest);                     // Envoyer les données utilisateur (sans mot de passe)
-        
     } catch (error) {
-      // 9. Si une erreur se produit (base de données, etc.), passer au middleware d'erreur
       next(error);
     }
   };
+
+
+
+
   
