@@ -3,12 +3,16 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import userRouter from "./routes/user.route.js";
 import authRouter from "./routes/auth.router.js";
+import { verifyToken } from "./utils/verifyUser.js";
+import cookieParser from "cookie-parser";
+
 dotenv.config();
 // Importing the environment variables from .env file
 
 // Start Express
 const app = express();
 app.use(express.json()); // Middleware to parse JSON bodies
+app.use(cookieParser()); // Middleware to parse cookies
 
 // connecte à MongoDB
 mongoose.set("strictQuery", false); // ajoute ça dans index.js avant mongoose.connect()
@@ -25,7 +29,7 @@ mongoose
 app.listen(3000, () => {
   console.log("Server is running on port 3000!!!!!");
 });
-
+app.use("/api/user", userRouter);
 app.use("/api/users", userRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/auth", authRouter);
