@@ -10,6 +10,7 @@ import {
   deleteUserFailure
 } from '../redux/user/userSlice';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 function Profile() {
   const dispatch = useDispatch();
@@ -25,25 +26,42 @@ function Profile() {
     password: '',
     avatar: currentUser.avatar || ''
   });
-
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState(''); // 'success' | 'error' | ''
+  
   useEffect(() => {
-    if (file) {
-      uploadImageToCloudinary(file);
+    if (currentUser) {
+      setFormData({
+        username: currentUser.username || '',
+        email: currentUser.email || '',
+        password: '',
+        avatar: currentUser.avatar || '',
+      });
     }
-  }, [file]);
+  }, [currentUser]);
+  
+
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const uploadImageToCloudinary = async (file) => {
     const form = new FormData();
     form.append('file', file);
-    form.append('upload_preset', 'e5v6bwbz'); // ton preset Cloudinary
-
+    form.append('upload_preset', 'e5v6bwbz');
+  
     try {
-      const res = await fetch('https://api.cloudinary.com/v1_1/drkevbsa1/image/upload', {
-        method: 'POST',
-        body: form,
-      });
-
-      const data = await res.json();
+      const res = await axios.post(
+        'https://api.cloudinary.com/v1_1/drkevbsa1/image/upload',
+        form,
+        {
+          onUploadProgress: (progressEvent) => {
+            const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(percent);
+          },
+        }
+      );
+  
+      const data = res.data;
+  
       if (data.secure_url) {
         setFormData((prev) => ({ ...prev, avatar: data.secure_url }));
         setFileUploadMessage('✅ Image uploaded successfully');
@@ -53,9 +71,11 @@ function Profile() {
     } catch (err) {
       console.error('Cloudinary Error:', err);
       setFileUploadMessage('❌ Error uploading image');
+    } finally {
+      setUploadProgress(0); // reset progress
     }
   };
-
+  
   const handleChange = (e) => {
     setFormData((prev) => ({
       ...prev,
@@ -65,46 +85,71 @@ function Profile() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+  
+    if (
+      formData.username === currentUser.username &&
+      formData.email === currentUser.email &&
+      formData.avatar === currentUser.avatar &&
+      formData.password === ''
+    ) {
+      setMessageType('error');
+      setMessage('Aucune modification détectée.');
+      return;
+    }
+  
     dispatch(updateUserStart());
-
+    setMessage('');
+  
     try {
       const res = await fetch(`/api/users/update/${currentUser._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser.token}`,
         },
         body: JSON.stringify(formData),
       });
-
+  
       const data = await res.json();
       if (data.success === false) {
         dispatch(updateUserFailure(data.message));
+        setMessageType('error');
+        setMessage(data.message || 'Erreur lors de la mise à jour.');
         return;
       }
-
-      dispatch(updateUserSuccess(data));
+  
+      dispatch(updateUserSuccess(data.user));
+      setMessageType('success');
+      setMessage('Profil mis à jour avec succès.');
     } catch (err) {
       dispatch(updateUserFailure(err.message));
+      setMessageType('error');
+      setMessage('Erreur serveur. Veuillez réessayer.');
     }
   };
-
+  
   const handleDeleteUser = async () => {
     dispatch(deleteUserStart());
     try {
       const res = await fetch(`/api/user/delete/${currentUser._id}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${currentUser.token}`, // ✅ Ajout du token
+        },
       });
+  
       const data = await res.json();
       if (!data.success) {
         dispatch(deleteUserFailure(data.message));
         return;
       }
+  
       dispatch(deleteUserSuccess(data));
     } catch (err) {
       dispatch(deleteUserFailure(err.message));
     }
   };
+  
 
   const handleSignOut = async () => {
     dispatch(signOutUserStart());
@@ -121,8 +166,15 @@ function Profile() {
       dispatch(deleteUserFailure(err.message));
     }
   };
+  useEffect(() => {
+    if (file) {
+      uploadImageToCloudinary(file);
+    }
+  }, [file]);
 
+  
   return (
+    
     <div className="p-3 max-w-lg mx-auto">
       <h1 className="text-3xl font-semibold text-center my-7">Profile</h1>
 
@@ -135,12 +187,53 @@ function Profile() {
           onChange={(e) => setFile(e.target.files[0])}
         />
 
-        <img
-          onClick={() => fileRef.current.click()}
-          src={formData.avatar}
-          alt="profile"
-          className="rounded-full w-24 h-24 object-cover self-center cursor-pointer mt-2"
+<div className="relative self-center">
+  <div
+    onClick={() => fileRef.current.click()}
+    className="w-28 h-28 rounded-full border-4 border-blue-500 overflow-hidden shadow-md cursor-pointer hover:opacity-80 transition"
+  >
+    {formData.avatar ? (
+      <img
+        src={formData.avatar}
+        alt="profile"
+        className="w-full h-full object-cover"
+      />
+    ) : (
+      <div className="w-full h-full bg-gray-200 flex items-center justify-center text-3xl text-gray-600">
+        📷
+      </div>
+    )}
+  </div>
+
+  {/* Circular Progress */}
+  {uploadProgress > 0 && uploadProgress < 100 && (
+    <div className="absolute inset-0 flex items-center justify-center">
+      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+        <path
+          className="text-gray-200"
+          stroke="currentColor"
+          strokeWidth="3"
+          fill="none"
+          d="M18 2.0845
+              a 15.9155 15.9155 0 0 1 0 31.831
+              a 15.9155 15.9155 0 0 1 0 -31.831"
         />
+        <path
+          className="text-blue-500"
+          stroke="currentColor"
+          strokeWidth="3"
+          fill="none"
+          strokeDasharray={`${uploadProgress}, 100`}
+          d="M18 2.0845
+              a 15.9155 15.9155 0 0 1 0 31.831
+              a 15.9155 15.9155 0 0 1 0 -31.831"
+        />
+      </svg>
+      <span className="absolute text-sm font-semibold text-blue-600">{uploadProgress}%</span>
+    </div>
+  )}
+</div>
+
 
         {fileUploadMessage && (
           <p className="text-center text-sm text-slate-600">{fileUploadMessage}</p>
@@ -150,7 +243,7 @@ function Profile() {
           id="username"
           type="text"
           placeholder="username"
-          value={formData.username}
+          defaultValue={formData.username}
           className="border p-3 rounded-lg"
           onChange={handleChange}
         />
@@ -158,15 +251,16 @@ function Profile() {
           id="email"
           type="email"
           placeholder="email"
-          value={formData.email}
+          defaultValue={formData.email}
           className="border p-3 rounded-lg"
           onChange={handleChange}
         />
         <input
           id="password"
+          defaultValue={formData.password}
+
           type="password"
           placeholder="password"
-          value={formData.password}
           className="border p-3 rounded-lg"
           onChange={handleChange}
         />
@@ -185,6 +279,13 @@ function Profile() {
       </div>
 
       <p className="text-red-500 mt-3">{error && error}</p>
+
+      {message && (
+  <p className={`text-center text-sm mt-4 ${messageType === 'error' ? 'text-red-500' : 'text-green-600'}`}>
+    {message}
+  </p>
+)}
+
     </div>
   );
 }
