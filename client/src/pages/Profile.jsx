@@ -7,7 +7,9 @@ import {
   signOutUserStart,
   deleteUserStart,
   deleteUserSuccess,
-  deleteUserFailure
+  deleteUserFailure,
+  signOutUserFailure,
+  signOutUserSuccess
 } from '../redux/user/userSlice';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -156,16 +158,22 @@ function Profile() {
     try {
       const res = await fetch('/api/auth/signout');
       const data = await res.json();
+  
       if (!data.success) {
-        dispatch(deleteUserFailure(data.message));
+        dispatch(signOutUserFailure(data.message));
+        console.error('Sign out failed:', data.message);
         return;
       }
-      dispatch(deleteUserSuccess(data));
+  
+      dispatch(signOutUserSuccess(data));
       navigate('/sign-in');
     } catch (err) {
-      dispatch(deleteUserFailure(err.message));
+      dispatch(signOutUserFailure(err.message));
+      console.error('Sign out error:', err);
     }
   };
+
+   
   useEffect(() => {
     if (file) {
       uploadImageToCloudinary(file);

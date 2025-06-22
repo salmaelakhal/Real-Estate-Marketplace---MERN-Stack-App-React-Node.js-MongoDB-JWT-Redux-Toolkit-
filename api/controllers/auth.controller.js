@@ -97,5 +97,25 @@ export const signin = async (req, res, next) => {
 
 
 
+  export const signout = (req, res) => {
+    const token = req.cookies.access_token;
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: "No user is logged in",
+      });
+    }
 
+    try {
+      res.clearCookie("access_token").status(200).json({
+        success: true,
+        message: "User has been logged out successfully",
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Logout failed",
+      });
+    }
+  };
   
