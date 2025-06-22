@@ -5,7 +5,7 @@ import userRouter from "./routes/user.route.js";
 import authRouter from "./routes/auth.router.js";
 import { verifyToken } from "./utils/verifyUser.js";
 import cookieParser from "cookie-parser";
-
+import listingRouter from "./routes/listing.route.js";
 dotenv.config();
 // Importing the environment variables from .env file
 
@@ -32,7 +32,7 @@ app.listen(3000, () => {
 app.use("/api/user", userRouter);
 app.use("/api/users", userRouter);
 app.use("/api/auth", authRouter);
-app.use("/api/auth", authRouter);
+app.use("/api/listing", listingRouter);
 
 app.use((err, req, res, next) => {
   const statusCode = err.status || 500;
