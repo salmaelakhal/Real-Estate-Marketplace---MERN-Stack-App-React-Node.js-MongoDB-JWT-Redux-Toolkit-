@@ -14,6 +14,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
+
 function Profile() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -32,7 +33,6 @@ function Profile() {
   const [messageType, setMessageType] = useState(''); // 'success' | 'error' | ''
   const [showListingsError, setShowListingsError] = useState(false);
   const [userListings, setUserListings] = useState([]);
-
 
 
 
@@ -202,9 +202,33 @@ function Profile() {
 
     console.log('Response:', data);
    } catch (error) {
-    setShowListingsError(true);
+      setShowListingsError(true);
+      console.error('Error fetching listings:', error.message);
    }
- }
+  }
+  
+
+
+  const handleListingDelete = async (listingId) => {
+    try {
+      const res = await fetch(`/api/listing/delete/${listingId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${currentUser.token}`,
+        },
+      });
+      const data = await res.json();
+      if (data.success === false) {
+        console.error('Error deleting listing:', data.message);
+        return;
+      }
+
+      setUserListings((prev) => prev.filter((listing) => listing._id !== listingId));
+    } catch (error) {
+      console.error('Error deleting listing:', error.message);
+      
+    }
+  }
   
   return (
     
@@ -324,7 +348,7 @@ function Profile() {
       {showListingsError ? <p className="text-red-500">Error loading listings. Please try again later.</p> : null}
       {userListings.length && userListings.length > 0 && 
         <div className="flex flex-col gap-4 ">
-          <h1 className='text-center mt-7 text-2xl font-semibold'>Your Listings</h1>
+          <h1 className='text-center mt-7  text-2xl font-semibold'>Your Listings</h1>
           {userListings.map((listing) => (
           <div key={listing._id} className='border rounded-lg p-3 flex justify-between items-center gap-4'>
             <Link to={`/listing/${listing._id}`}>
@@ -335,7 +359,7 @@ function Profile() {
             </Link>
 
             <div className="flex flex-col items-center">
-              <button className='text-red-700 uppercase'>Delete</button>
+                <button onClick={() =>handleListingDelete(listing._id)} className='text-red-700 uppercase'>Delete</button>
               <button className='text-green-700 uppercase'>Edit</button>
             </div>
           </div>
