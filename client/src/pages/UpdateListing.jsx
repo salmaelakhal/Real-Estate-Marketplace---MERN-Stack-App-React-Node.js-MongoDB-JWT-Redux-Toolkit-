@@ -1,13 +1,8 @@
 import { useEffect, useState } from 'react';
-import {
-  getDownloadURL,
-  getStorage,
-  ref,
-  uploadBytesResumable,
-} from 'firebase/storage';
-import { app } from '../firebase';
 import { useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
+// Si tu n’utilises plus Firebase dans ce fichier, tu peux aussi supprimer l'import `app`
+
 
 export default function CreateListing() {
   const { currentUser } = useSelector((state) => state.user);
@@ -32,6 +27,8 @@ export default function CreateListing() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [uploadedUrls, setUploadedUrls] = useState([]);
+
 
   useEffect(() => {
     const fetchListing = async () => {
@@ -48,65 +45,66 @@ export default function CreateListing() {
     fetchListing();
   }, []);
 
-  const handleImageSubmit = () => {
-    if (files.length > 0 && files.length + formData.imageUrls.length < 7) {
-      setUploading(true);
-      setImageUploadError(false);
-      const promises = [];
-
-      for (let i = 0; i < files.length; i++) {
-        promises.push(storeImage(files[i]));
-      }
-      Promise.all(promises)
-        .then((urls) => {
-          setFormData({
-            ...formData,
-            imageUrls: formData.imageUrls.concat(urls),
-          });
-          setImageUploadError(false);
-          setUploading(false);
-        })
-        .catch(() => {
-          setImageUploadError('Image upload failed (2 mb max per image)');
-          setUploading(false);
-        });
-    } else {
-      setImageUploadError('You can only upload 6 images per listing');
-      setUploading(false);
-    }
-  };
-
+ 
   const storeImage = async (file) => {
     return new Promise((resolve, reject) => {
-      const storage = getStorage(app);
-      const fileName = new Date().getTime() + file.name;
-      const storageRef = ref(storage, fileName);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-      uploadTask.on(
-        'state_changed',
-        (snapshot) => {
-          const progress =
-            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          console.log(`Upload is ${progress}% done`);
-        },
-        (error) => {
-          reject(error);
-        },
-        () => {
-          getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-            resolve(downloadURL);
-          });
-        }
-      );
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', 'e5v6bwbz'); // Remplace par ton preset si besoin
+  
+      fetch('https://api.cloudinary.com/v1_1/drkevbsa1/image/upload', {
+        method: 'POST',
+        body: formData,
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.secure_url) {
+            resolve(data.secure_url);
+          } else {
+            reject(new Error('Failed to upload image'));
+          }
+        })
+        .catch((err) => reject(err));
     });
   };
-
+  
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(false);
+  
+    try {
+      // Exemple de requête pour mettre à jour la fiche (listing)
+      const res = await fetch(`/api/listing/update/${params.listingId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ...formData, userRef: currentUser._id }),
+      });
+  
+      const data = await res.json();
+      if (data.success === false) {
+        setError(data.message || 'Something went wrong');
+        setLoading(false);
+        return;
+      }
+  
+      navigate(`/listing/${data._id}`);
+    } catch (err) {
+      setError('Update failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   const handleRemoveImage = (index) => {
-    setFormData({
-      ...formData,
-      imageUrls: formData.imageUrls.filter((_, i) => i !== index),
-    });
+    const newUrls = [...uploadedUrls];
+    newUrls.splice(index, 1);
+    setUploadedUrls(newUrls);
+    setFormData((prev) => ({ ...prev, imageUrls: newUrls }));
   };
+  
 
   const handleChange = (e) => {
     if (e.target.id === 'sale' || e.target.id === 'rent') {
@@ -139,36 +137,25 @@ export default function CreateListing() {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleImageSubmit = async () => {
+    if (files.length < 1 || files.length + uploadedUrls.length > 6) {
+      setError(['You can upload a max of 6 images']);
+      return;
+    }
+    setUploading(true);
     try {
-      if (formData.imageUrls.length < 1)
-        return setError('You must upload at least one image');
-      if (+formData.regularPrice < +formData.discountPrice)
-        return setError('Discount price must be lower than regular price');
-      setLoading(true);
-      setError(false);
-      const res = await fetch(`/api/listing/update/${params.listingId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...formData,
-          userRef: currentUser._id,
-        }),
-      });
-      const data = await res.json();
-      setLoading(false);
-      if (data.success === false) {
-        setError(data.message);
-      }
-      navigate(`/listing/${data._id}`);
-    } catch (error) {
-      setError(error.message);
-      setLoading(false);
+      const urls = await Promise.all(files.map((file) => storeImage(file)));
+      const allImages = [...uploadedUrls, ...urls];
+      setUploadedUrls(allImages);
+      setFormData((prev) => ({ ...prev, imageUrls: allImages }));
+      setError([]);
+    } catch (err) {
+      setError(['Image upload failed']);
+    } finally {
+      setUploading(false);
     }
   };
+  
   return (
     <main className='p-3 max-w-4xl mx-auto'>
       <h1 className='text-3xl font-semibold text-center my-7'>
@@ -333,7 +320,7 @@ export default function CreateListing() {
           </p>
           <div className='flex gap-4'>
             <input
-              onChange={(e) => setFiles(e.target.files)}
+              onChange={(e) => setFiles([...e.target.files])}
               className='p-3 border border-gray-300 rounded w-full'
               type='file'
               id='images'
